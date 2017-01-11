@@ -16,7 +16,7 @@ Should work on Ubuntu (tested on 16.04). The following will need to be installed
 The program
 ```
 /usr/share/flypig-test/cont
-/usr/share/flypig-test/button-11.wav
+/usr/share/flypig-test/beep.wav
 ```
 
 Policy to allow use of system dbus
