@@ -1,0 +1,40 @@
+/var/log/syslog using pamtester
+(same output every time, everything works great)
+
+Jan 11 19:04:04 Owen pamtester: Test authentication for pam_test
+Jan 11 19:04:04 Owen pamtester: pam_test: opening bus
+Jan 11 19:04:04 Owen pamtester: pam_test: calling prod
+Jan 11 19:04:04 Owen stdbuf[12937]: uk.co.flypig.test.prod called
+Jan 11 19:04:04 Owen stdbuf[12937]: Beep!
+Jan 11 19:04:05 Owen stdbuf[12937]: Returned
+Jan 11 19:04:05 Owen pamtester: pam_test: result 1
+Jan 11 19:04:08 Owen pamtester: pam_ecryptfs: seteuid error
+... 
+
+
+/var/log/syslog using unity lockscreen
+(first attempt works, second generates NULL proxy, third hangs)
+
+Jan 11 19:20:24 Owen compiz: Test authentication for pam_test
+Jan 11 19:20:24 Owen compiz: pam_test: opening bus
+Jan 11 19:20:24 Owen compiz: pam_test: calling prod
+Jan 11 19:20:24 Owen stdbuf[1460]: uk.co.flypig.test.prod called
+Jan 11 19:20:24 Owen stdbuf[1460]: Beep!
+Jan 11 19:20:24 Owen stdbuf[1460]: Returned
+Jan 11 19:20:24 Owen compiz: pam_test: result 1
+Jan 11 19:20:27 Owen compiz: pam_ecryptfs: seteuid error
+...
+Jan 11 19:20:29 Owen compiz: Test authentication for pam_test
+Jan 11 19:20:29 Owen compiz: pam_test: opening bus
+Jan 11 19:20:29 Owen compiz: pam_test: null proxy
+Jan 11 19:20:29 Owen compiz: pam_test: calling prod
+Jan 11 19:20:29 Owen compiz: pam_test: result 0
+Jan 11 19:20:33 Owen compiz: pam_ecryptfs: seteuid error
+...
+Jan 11 19:20:43 Owen compiz: Test authentication for pam_test
+Jan 11 19:20:43 Owen compiz: pam_test: opening bus
+Jan 11 19:20:43 Owen kernel: [  132.403542] show_signal_msg: 111 callbacks suppressed
+Jan 11 19:20:43 Owen kernel: [  132.403547] pool[3420]: segfault at 7f6c693ddc34 ip 00007f6c941469da sp 00007f6c632e9c48 error 4 in libc-2.23.so[7f6c940a8000+1bf000]
+
+
+
