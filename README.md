@@ -1,6 +1,16 @@
 # dbus-pam-test
 Test the use of DBUS with PAM
 
+## Prerequisites
+Should work on Ubuntu (tested on 16.04). The following will need to be installed for things to build and run.
+
+- make
+- gcc
+- libpam0g-dev
+- alsa-utils
+- libglib2.0-dev
+- libdbus-glib-1-dev
+
 ## Important files
 
 The program
@@ -59,9 +69,7 @@ pamtester flypig-test $USER authenticate
 
 ## Credits
 
-Beep sound by distillerystudio (CC attribution).
-
-https://www.freesound.org/people/distillerystudio/sounds/327734/
-https://creativecommons.org/licenses/by/3.0/
+Beep sound by [distillerystudio](https://www.freesound.org/people/distillerystudio/sounds/327734/) ([CC attribution](https://creativecommons.org/licenses/by/3.0/
+)).
 
 
