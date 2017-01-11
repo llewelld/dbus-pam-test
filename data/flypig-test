@@ -1,0 +1,4 @@
+auth    optional /usr/lib/x86_64-linux-gnu/security/pam_test.so
+@include common-auth
+auth optional pam_gnome_keyring.so
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=Flypig testing service
+
+[Service]
+WorkingDirectory=/usr/share/flypig-test
+ExecStart=/usr/bin/stdbuf -oL /usr/share/flypig-test/service
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
