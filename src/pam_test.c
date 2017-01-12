@@ -50,6 +50,11 @@ void prompt(pam_handle_t *pamh, int style, PAM_CONST char *prompt);
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv);
 PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv);
 
+gboolean timeout_exit (gpointer user_data);
+void bus_proxy_acquired (GObject *source_object, GAsyncResult *res, gpointer user_data);
+void prod_callback (GObject *source_object, GAsyncResult *res, gpointer user_data);
+void increment_callback (GObject *source_object, GAsyncResult *res, gpointer user_data);
+
 /**
  * Calls the PAM conversation function. This is the feedback callback provided 
  * by the client application for communicating with it.
@@ -129,39 +134,29 @@ void prompt(pam_handle_t *pamh, int style, PAM_CONST char *prompt) {
  */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
 	int result = PAM_AUTH_ERR;
-	UkCoFlypigTest * proxy;
-	GError * error;
+	GMainLoop *loop;
 	GDBusProxyFlags bus_flags;
-	gboolean beep;
 
 	syslog(LOG_INFO, "Test authentication for pam_test");
 
+	loop = g_main_loop_new (NULL, FALSE);
+
 	syslog(LOG_INFO, "pam_test: opening bus\n");
 
-	proxy = NULL;
-	error = NULL;
 	bus_flags = G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS;
+
+	uk_co_flypig_test_proxy_new_for_bus (G_BUS_TYPE_SYSTEM, bus_flags, "uk.co.flypig.test", "/TestObject", NULL, bus_proxy_acquired, NULL);
+
+	g_timeout_add(1000, timeout_exit, loop);
+
+	syslog(LOG_INFO, "Entering main loop\n");
+	g_main_loop_run (loop);
+
+	syslog(LOG_INFO, "Exited main loop\n");	
+	g_main_loop_unref (loop);
+
+	syslog(LOG_INFO, "The End\n");
 	
-	proxy = uk_co_flypig_test_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM, bus_flags, "uk.co.flypig.test", "/TestObject", NULL, & error);
-	if (proxy == NULL) {
-		syslog(LOG_ERR, "pam_test: null proxy\n");
-	}
-	if (error != NULL) {
-		syslog(LOG_ERR, "pam_test: bus error: %s\n", error->message);
-	}
-
-	syslog(LOG_INFO, "pam_test: calling prod\n");
-	error = NULL;
-	beep = TRUE;
-	result = uk_co_flypig_test_call_prod_sync (proxy, beep, NULL, & error);
-	syslog(LOG_INFO, "pam_test: result %d\n", result);
-
-	if (error != NULL) {
-		syslog(LOG_ERR, "pam_test: prod error: %s\n", error->message);
-	}
-
-	g_object_unref (proxy);
-
 	result = PAM_SUCCESS;
 
 	return result;
@@ -195,6 +190,81 @@ PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const cha
 	return PAM_SUCCESS;
 }
 
+
+gboolean timeout_exit (gpointer user_data) {
+	// Quit the service loop
+	g_main_loop_quit ((GMainLoop *)user_data);
+
+	return FALSE;
+}
+
+void bus_proxy_acquired (GObject *source_object, GAsyncResult *res, gpointer user_data) {
+	GError * error;
+	UkCoFlypigTest * proxy;
+	gboolean beep;
+
+	error = NULL;
+	proxy = uk_co_flypig_test_proxy_new_for_bus_finish (res, & error);
+
+	if (proxy == NULL) {
+		syslog(LOG_ERR, "Null proxy\n");
+	}
+	if (error != NULL) {
+		syslog(LOG_ERR, "Bus error: %s\n", error->message);
+	}
+
+	// Call the prod function of the flypig-test service
+	syslog(LOG_INFO, "Calling prod\n");
+	error = NULL;
+	beep = TRUE;
+
+	uk_co_flypig_test_call_prod (proxy, beep, NULL, prod_callback, user_data);
+
+}
+
+void prod_callback (GObject *source_object, GAsyncResult *res, gpointer user_data) {
+	GError * error;
+	gboolean result;
+	UkCoFlypigTest * proxy = (UkCoFlypigTest *)source_object;
+	gint value;
+
+	error = NULL;
+	result = uk_co_flypig_test_call_prod_finish (proxy, res, & error);
+
+	syslog(LOG_INFO, "Result %d\n", result);
+
+	if (error != NULL) {
+		syslog(LOG_ERR, "Prod error: %s\n", error->message);
+	}
+
+	value = 100;
+	syslog(LOG_INFO, "Calling increment\n");
+	syslog(LOG_INFO, "Increment in %d\n", value);
+	uk_co_flypig_test_call_increment (proxy, value, NULL, increment_callback, user_data);
+}
+
+void increment_callback (GObject *source_object, GAsyncResult *res, gpointer user_data) {
+	GError * error;
+	gboolean result;
+	UkCoFlypigTest * proxy = (UkCoFlypigTest *)source_object;
+	gint out_increment;
+
+	error = NULL;
+
+	result = uk_co_flypig_test_call_increment_finish (proxy, & out_increment, res, & error);
+	syslog(LOG_INFO, "Result %d\n", result);
+
+	if (error != NULL) {
+		syslog(LOG_ERR, "Increment error: %s\n", error->message);
+	}
+
+	syslog(LOG_INFO, "Output %d\n", out_increment);
+
+	// Release the dbus proxy
+	g_object_unref (proxy);
+
+	syslog(LOG_INFO, "Done\n");
+}
 
 // Provide details of the module and callbacks
 #ifdef PAM_STATIC
