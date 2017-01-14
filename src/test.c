@@ -16,8 +16,7 @@
 
 #include <stdio.h>
 
-#include "generated-code.h"
-
+#include <dbus/dbus-glib-lowlevel.h>
 /**
  * Program entry point.
  * Call a couple of flypig-test functions via DBUS.
@@ -26,58 +25,61 @@
  * @return 0 for success
  */
 int main (int argv, char ** argc) {
-	UkCoFlypigTest * proxy;
+	DBusGProxy * manager;
+	DBusGConnection * connection;
+	DBusConnection * conn;
 	GError * error;
-	GDBusProxyFlags flags;
 	gboolean result;
+	int valuein;
+	int valueout;
 	gboolean beep;
-	gint value;
-	gint increment;
 
-	// Open a dbus connection to the flypig-test service on the syste bus
-	printf ("Opening bus\n");
-	proxy = NULL;
-	error = NULL;
-	flags = G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS;
+	// Otherwise dbus-glib doesn't setup it value types
+	// See https://cgit.freedesktop.org/libfprint/fprintd/tree/pam/pam_fprintd.c
+	connection = dbus_g_bus_get (DBUS_BUS_SYSTEM, NULL);
+	if (connection != NULL) {
+		dbus_g_connection_unref (connection);
+	}
 	
-	proxy = uk_co_flypig_test_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM, flags, "uk.co.flypig.test", "/TestObject", NULL, & error);
-	if (proxy == NULL) {
-		printf ("Null proxy\n");
-	}
-	if (error != NULL) {
-		printf ("Bus error: %s\n", error->message);
-	}
-
-	// Call the prod function of the flypig-test service
-	printf ("Calling prod\n");
+	// Set us up a private D-Bus connection
 	error = NULL;
-	beep = TRUE;
-	result = uk_co_flypig_test_call_prod_sync (proxy, beep, NULL, & error);
-	printf("Result %d\n", result);
+	connection = dbus_g_bus_get_private (DBUS_BUS_SYSTEM, NULL, &error);
 
-	if (error != NULL) {
-		printf ("Prod error: %s\n", error->message);
-	}
-
-	// Call the increment function of the flypig-test service
-	printf ("Calling increment\n");
-	error = NULL;
-	value = 100;
-	increment = 0;
-	result = uk_co_flypig_test_call_increment_sync (proxy, value, & increment, NULL, & error);
-	printf("Result %d\n", result);
-
-	if (error != NULL) {
-		printf ("Increment error: %s\n", error->message);
+	// Set us up a private D-Bus connection
+	if (connection == NULL) {
+		printf ("Error while getting bus: %s\n", error->message);
 	}
 	else {
-		printf ("Value in %d, value out %d\n", value, increment);
+		manager = dbus_g_proxy_new_for_name (connection, "uk.co.flypig.test", "/TestObject", "uk.co.flypig.test");
+
+		// Call the remote function
+		beep = TRUE;
+		result = dbus_g_proxy_call (manager, "Prod", &error, G_TYPE_BOOLEAN, beep, G_TYPE_INVALID, G_TYPE_INVALID);
+		if (result == FALSE) {
+			printf("Prod failed: %s\n", error->message);
+			g_clear_error (&error);
+		}
+
+		// Call the remote function
+		valuein = 56;
+		valueout = 0;
+		printf("Value in: %d\n", valuein);
+		result = dbus_g_proxy_call (manager, "Increment", &error, G_TYPE_INT, valuein, G_TYPE_INVALID, G_TYPE_INT, & valueout, G_TYPE_INVALID);
+		if (result == FALSE) {
+			printf("Prod failed: %s\n", error->message);
+			g_clear_error (&error);
+		}
+		printf("Value out: %d\n", valueout);
+
+		// Pull down the connection
+		g_object_unref (manager);
+
+		conn = dbus_g_connection_get_connection(connection);
+		dbus_connection_close (conn);
+		dbus_g_connection_unref (connection);
 	}
 
 	printf ("Done\n");
-
-	// Release the dbus proxy
-	g_object_unref (proxy);
 
 	return 0;
 }

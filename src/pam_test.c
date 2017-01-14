@@ -20,7 +20,8 @@
 #include <stdlib.h>
 #include <syslog.h>
 
-#include "generated-code.h"
+#include <dbus/dbus-glib-lowlevel.h>
+#include <dbus/dbus-glib-bindings.h>
 
 // Useful reference material:
 // The Linux-PAM Module Writers' Guide:
@@ -128,39 +129,23 @@ void prompt(pam_handle_t *pamh, int style, PAM_CONST char *prompt) {
  *         PAM_SUCCESS (athentication success)
  */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-	int result = PAM_AUTH_ERR;
-	UkCoFlypigTest * proxy;
+	gboolean result;
 	GError * error;
-	GDBusProxyFlags bus_flags;
-	gboolean beep;
+	DBusGConnection * connection;
 
 	syslog(LOG_INFO, "Test authentication for pam_test");
 
-	syslog(LOG_INFO, "pam_test: opening bus\n");
-
-	proxy = NULL;
+	// Otherwise dbus-glib doesn't setup it value types
+	// See https://cgit.freedesktop.org/libfprint/fprintd/tree/pam/pam_fprintd.c
 	error = NULL;
-	bus_flags = G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS;
-	
-	proxy = uk_co_flypig_test_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM, bus_flags, "uk.co.flypig.test", "/TestObject", NULL, & error);
-	if (proxy == NULL) {
-		syslog(LOG_ERR, "pam_test: null proxy\n");
+	connection = dbus_g_bus_get (DBUS_BUS_SYSTEM, &error);
+	if (connection == NULL) {
+			syslog(LOG_ERR, "pam_test: connection error: %s\n", error->message);
+			g_clear_error (&error);
 	}
-	if (error != NULL) {
-		syslog(LOG_ERR, "pam_test: bus error: %s\n", error->message);
+	else {
+		dbus_g_connection_unref (connection);
 	}
-
-	syslog(LOG_INFO, "pam_test: calling prod\n");
-	error = NULL;
-	beep = TRUE;
-	result = uk_co_flypig_test_call_prod_sync (proxy, beep, NULL, & error);
-	syslog(LOG_INFO, "pam_test: result %d\n", result);
-
-	if (error != NULL) {
-		syslog(LOG_ERR, "pam_test: prod error: %s\n", error->message);
-	}
-
-	g_object_unref (proxy);
 
 	result = PAM_SUCCESS;
 
