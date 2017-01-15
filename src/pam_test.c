@@ -20,8 +20,8 @@
 #include <stdlib.h>
 #include <syslog.h>
 
-#include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus-glib-bindings.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 // Useful reference material:
 // The Linux-PAM Module Writers' Guide:
@@ -132,6 +132,11 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	gboolean result;
 	GError * error;
 	DBusGConnection * connection;
+	DBusGProxy * manager;
+	DBusConnection * conn;
+	GMainLoop * loop;
+	GMainContext * ctx;
+	gboolean beep;
 
 	syslog(LOG_INFO, "Test authentication for pam_test");
 
@@ -140,13 +145,51 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	error = NULL;
 	connection = dbus_g_bus_get (DBUS_BUS_SYSTEM, &error);
 	if (connection == NULL) {
-			syslog(LOG_ERR, "pam_test: connection error: %s\n", error->message);
-			g_clear_error (&error);
+		syslog(LOG_ERR, "pam_test: connection error: %s\n", error->message);
+		g_clear_error (&error);
 	}
 	else {
 		dbus_g_connection_unref (connection);
 	}
 
+	// Set up main loop context
+	ctx = g_main_context_new ();
+	loop = g_main_loop_new (ctx, FALSE);
+
+	syslog(LOG_INFO, "Test authentication for pam_test");
+
+	// Set us up a private D-Bus connection
+	error = NULL;
+	connection = dbus_g_bus_get_private (DBUS_BUS_SYSTEM, ctx, &error);
+
+	// Set us up a private D-Bus connection
+	if (connection == NULL) {
+		syslog(LOG_INFO, "Error\n");
+		syslog(LOG_ERR, "pam_test: bus error: %s\n", error->message);
+	}
+	else {
+		syslog(LOG_INFO, "No error\n");
+		manager = dbus_g_proxy_new_for_name (connection, "uk.co.flypig.test", "/TestObject", "uk.co.flypig.test");
+
+		// Call the remote function
+		beep = TRUE;
+		result = dbus_g_proxy_call (manager, "Prod", &error, G_TYPE_BOOLEAN, beep, G_TYPE_INVALID, G_TYPE_INVALID);
+		if (result == FALSE) {
+			syslog(LOG_ERR, "pam_test: prod error: %s\n", error->message);
+			g_clear_error (&error);
+		}
+
+		// Pull down the connection
+		g_object_unref (manager);
+
+		conn = dbus_g_connection_get_connection(connection);
+		dbus_connection_close (conn);
+		dbus_g_connection_unref (connection);
+	}
+
+	g_main_loop_unref (loop);
+	g_main_context_unref (ctx);
+	
 	result = PAM_SUCCESS;
 
 	return result;
