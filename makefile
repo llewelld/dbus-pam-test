@@ -15,7 +15,7 @@ test: src/test.c src/generated-code.c
 
 pam_test: src/pam_test.c src/generated-code.c
 	$(CC) -c src/pam_test.c src/generated-code.c -fPIC -DPIC $(CFLAGS) $(CFLAGS_DBUSGLIB)
-	$(CC) -shared -o pam_test.so pam_test.o generated-code.o -lpam -ldl $(LIBS) $(LIBS_DBUSGLIB)
+	$(CC) -Wl,-z,nodelete -shared -o pam_test.so pam_test.o generated-code.o -lpam -ldl $(LIBS) $(LIBS_DBUSGLIB)
 
 src/generaged-code.c src/generated-code.h: src/test-objectmanager.xml
 	cd src && gdbus-codegen --interface-prefix uk.co.flypig.test.. --generate-c-code generated-code --c-namespace "" --c-generate-object-manager --generate-docbook generated-docs test-objectmanager.xml && cd ..
